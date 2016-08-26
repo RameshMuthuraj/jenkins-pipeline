@@ -15,7 +15,9 @@ assert "$env.componentBranch" != null
 assert "$env.componentCredentialsId" != null
 assert "$env.versionJob" != null
 assert "$env.deployJob" != null
-
+assert "$env.curlNodeRestriction" != null
+assert "$env.sonarNodeRestriction" != null
+assert "$env.jenkinsCredentialsId" != null
 
 def runFlow() {
     stage 'Executing Workflow'
@@ -32,32 +34,41 @@ def runFlow() {
     echo "sourceBranch=$sourceBranch"
     echo "sourceCommitHash=$sourceCommitHash"
     echo "targetBranch=$targetBranch"
+    echo "curlNodeRestriction=$env.curlNodeRestriction"
+    echo "sonarNodeRestriction=$env.sonarNodeRestriction"
 
-    steps.determineGitFlowBranchType(env.BRANCH_NAME)
+    node ("$env.buildNodeRestriction") {
+      env.workspace = steps.getWorkspace()
+      ws(env.workspace) {
+        // Execute the required steps
+        echo "Working on Node $env.NODE_NAME @$env.workspace"
+        steps.updateBuildDescription("$flowType", "$env.jenkinsCredentialsId")
 
-    steps.checkoutGitComponent()
+        deleteDir()
 
-    // Execute the required steps
-    checkpoint "_Branch: $env.BRANCH_NAME"
-    if ("$env.branchType" == "stable") {
-        steps.updateBuildDescription("$flowType")
-    } else {
-        steps.updateBuildDescription("$env.BRANCH_NAME - $flowType")
+        // create scm info object, and send use it to get do checkout
+        env.branchName = env.BRANCH_NAME
+        env.pushCommit = push_commit
+        env.sourceBranch = sourceBranch
+        env.sourceCommitHash = sourceCommitHash
+        env.targetBranch = targetBranch
+        // env.componentScm -> already in the env
+        // env.componentCredentialsId -> already in the env
+        steps.checkoutGitComponent()
+
+        steps.npmBuild()
+
+        if ("$flowType" == "release") {
+            steps.npmVersion()
+            steps.npmPublish('true')
+            steps.publishStaticDocumentation()
+        }
+
+        steps.stashSuccessNotification()
+        step([$class: 'Mailer', notifyEveryUnstableBuild: false, recipients: "$env.mailList", sendToIndividuals: false])
+      }
     }
-    steps.npmBuild()
-    checkpoint 'Build & Test Completed'
-
-    if ("$flowType" == "nightly" || "$flowType" == "release") {
-        steps.versionStage()
-        steps.publishStage()
-    }
-    checkpoint 'Version released in Nexus'
-
-    if ("$flowType" == "release") {
-        steps.retrieveArtifactFromNexusStage()
-        steps.publishDocumentationStage()
-    }
-
-    steps.stashSuccessNotification()
 }
+
+// Has to exist with 'return this;' in order to be used as library
 return this;

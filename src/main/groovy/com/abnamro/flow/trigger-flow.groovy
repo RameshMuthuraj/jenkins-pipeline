@@ -16,8 +16,8 @@ properties([[$class: 'ParametersDefinitionProperty', parameterDefinitions: [
   * The Multi-Branch plugin will generate the jobs for us with a name based upon the branch name.
 	* This however, does not contain 'origin/', so we have to filter this out.
 	*/
-def triggerBranchNormalized = "$sourceBranch"
-def triggerBranch = "$sourceBranch"
+def triggerBranchNormalized = "$GIT_BRANCH"
+def triggerBranch = "$GIT_BRANCH"
 if (triggerBranchNormalized.startsWith('origin')) {
     triggerBranchNormalized = triggerBranch.substring(7, triggerBranch.length())
 }

@@ -11,11 +11,17 @@ Jenkins-Pipeline is free software: you can redistribute it and/or modify
    You should have received a copy of the GNU General Public License
    along with Jenkins-Pipeline.  If not, see <http://www.gnu.org/licenses/>.
 
+# Table of Contents
+   1. [Jenkins Pipeline Plugin](#Jenkins-Pipeline-plugin)
+   2. [Jenkins Jobs](#Jenkins-Jobs-setup)
+   3. [SOLO Pipeline Application](#Application-setup)
+   4. [Examples](#Examples)
+   5. [Tips & Tricks](#Tips-Tricks)
+   6. [Required Jenkins Plugins](#Required-Jenkins-plugins)
+   7. [UDeploy Interaction Script](docs/udeploy-info.md)
 
-# Jenkins Pipeline
-
-## What is the Jenkins Workflow application
-Jenkins Workflow is an application which consists of a set of groovy scripts utilizing the [Jenkins Pipeline plugin](https://wiki.jenkins-ci.org/display/JENKINS/Workflow+Plugin).
+# SOLO Pipeline
+SOLO Pipeline is an application which consists of a set of groovy scripts utilizing the [Jenkins Pipeline plugin](https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Plugin).
 This plugin allows you to create durable workflows via groovy scripts.
 
 This application is created in order to setup a common library and common practices to be used within ABN Amro Bank.
@@ -23,7 +29,7 @@ What you will find inside is a collection of build flows and a set of common act
 
 We will first introduce you to the Jenkins plugin and then dive into how this application is setup.
 
-## What is the Jenkins Pipeline plugin
+# Jenkins Pipeline plugin<a name="Jenkins-Pipeline-plugin"></a>
 The Jenkins Pipeline plugin attempts to replace collections of jobs required for an entire build pipeline or **Pipeline** via a single groovy script utilizing a DSL.
 This DSL can use Jenkins concepts as first class citizens, such as nodes, workspace management, scm checkout and many more.
 
@@ -54,7 +60,7 @@ For more information about the Jenkins Pipeline plugin, please visit [Jenkins Pi
 **Note** *for those skipping the information from the plugin. Generally the scripts run in sandbox mode, disabling many features from Groovy, Java and restricting your scripts.
 These restrictions are incorporated in the application and will not always be explained. This includes some obvious things like file handling but also less obvious things like String manipulations (substring, someString[1..10] and so on.)*
 
-### Pipeline Job
+## Pipeline Job
 A Jenkins Pipeline job is a Jenkins Job that just runs a Jenkins Pipeline script. <br>
 This can be an inline script or a Jenkinsfile* or a groovy script from a SCM configuration.
 
@@ -62,7 +68,7 @@ This can be an inline script or a Jenkinsfile* or a groovy script from a SCM con
 
 ![SS Pipeline Script Location](docs/images/ss-jenkins-pipeline-script-location.png)
 
-### Multi-Branch Job
+## Multi-Branch Job
 In addition to the Jenkins Pipeline job type, there's also the Multi-Branch Pipeline job type.
 This is a more complex job type, which incorporates the [CloudBees Folder Plugin](https://wiki.jenkins-ci.org/display/JENKINS/CloudBees+Folders+Plugin) and [Templates](https://www.cloudbees.com/products/cloudbees-jenkins-platform/enterprise-edition/features/templates-plugin) together with the Pipeline plugin.
 
@@ -77,7 +83,7 @@ Some of the most notable:
 * You can set a "at least in x time" trigger, this one is very interesting. This means that even if you do not set a time trigger, and you assume there will be at least a daily check-in, you can still force it to be build at least once a day. If no check-in occurred today, the Multi-Branch template will trigger it anyway.
 * Environment variables. With this you can set certain variables that can be used inside the child jobs, including in Jenkins Pipeline scripts. **Note** ***in a pipeline script, these will be part of the env variable***. So variable **foo** will be usable as ***$env.foo***.
 
-## Jobs setup
+# Jenkins Jobs setup<a name="Jenkins-Jobs-setup"></a>
 In the setup of this application, the Multi-Branch pipeline is used a the job template.
 It will create the jobs for each Branch that has a **Jenkinsfile** (which should be all).
 As the jobs inside the folder created by the Multi-Branch job can be called, we can still use external trigger jobs to start them.
@@ -92,8 +98,15 @@ The plugins that allow us to trigger other jobs however, do not allow regex or o
 The setup can be found here:
 ![Multi Branch Pipeline](docs/images/multi-branch-pipeline.png)
 
-## Application setup
+Some parts of the flows cannot be executed directly from the pipeline.
+So we have some additional jobs, version and sonar.
+* Version: updates the version via NPM version command, and uses GiTPublisher plugin to push the code change (package.json)
+* Sonar: executes a sonar analysis via the SonarQube Runner which requires a sonar properties file. See [SonarQube's documentation](http://docs.sonarqube.org/display/SONAR/Analysis+Parameters) for more information.
 
+How the jobs interact, see the following model.
+![jobs-in-pipeline](docs/images/jobs-in-pipeline.png)
+
+# Application setup<a name="Application-setup"></a>
 The application currently has two types of files.
 * Flow files, in the *com.abnamro.flow* package
 * Common files, in the *com.abnamro.flow.common* package
@@ -114,7 +127,7 @@ node {
 flow.runFlow()
 ```
 
-### Architecture
+## Architecture
 ![Architectural Model](docs/images/model.png)
 
 The intention is to apply the DRY principle to the Jenkins Pipeline scripts.
@@ -126,7 +139,7 @@ Both the flows and the Steps script are heavily configurable via parameters.
 They are assumed to be supplied by the Jenkins job itself.
 See [Jenkins Jobs Definition](src/main/resources/jenkins-job-builder-example-config.yaml).
 
-### Flows supported
+## Flows supported
 First of all, for now the library is purely based on doing npm/gulp builds.
 Which are predominately build on Windows buildslaves.
 
@@ -145,7 +158,13 @@ Also allows the following:
 * Update build description in Jenkins
 * Update build status in BitBucket/Stash (on premise installation)
 
-### Parameters [OCA, Standards-and-Guidelines]
+### OCA Flow
+Find all relevant information [here](docs/flow-oca-usage.md).
+
+### Standards & Guidelines Flow
+Find all relevant information [here](docs/flow-sandg-usage.md)
+
+## Parameters [OCA, Standards-and-Guidelines]
 These parameters are the ones used throughout the scripts. All parameters are Strings, so there is a logical distinction on what it means.
 Where applicable the name is derived from how you would set such a parameter in a Jenkins job.
 
@@ -165,13 +184,30 @@ nexusRepositoryUrl         | Base URL        | The base URL for the Nexus reposi
 nexusComponentId           | String          | The name of the [NPM] component to retrieve from Nexus.
 sitePublishLocation        | Base URL        | The Base URL of where a site should be published. For example, you can use a Nexus 2 Site repository or Nexus 3 Raw repository to host the Standards and Guidelines documentation.
 sitePublishCredentialsId   | CredentialsId   | The Credentials-ID that contains the credentials for site publish location.
-GIT_COMMIT                 | GIT commit hash | If the GIT_COMMIT that is to be build is known, supply it and it will be used instead of the branch name.
+publishCredentialsId       | CredentialsId   | The Credentials-ID that contains the credentials for...
+nexusUploadCredentialsId   | CredentialsId   | The Credentials-ID that contains the credentials for uploading a file to Nexus (ocaNexusPublishLocation)
+ocaNexusPublishLocation    | Base URL        | The Credentials-ID that contains the credentials for site publish location.
 notifyScmUrl               | Base URL        | The base URL for sending a notification to Stash/BitBucket
 phantomjsZip               | file name       | The complete filename for the phantomjs zip file, required for npm build
+gitTool                    | String          | The GIT Tool to use, if not specified will be 'Default' 
+sonarRunner                | String          | The SonarQube Runner tool to use
+udeployRequestUrl          | Base URL        | The URL for UDeploy Process Requests
+udeployRequestStatusUrl    | Base URL        | The URL for UDeploy Process Status Requests
+udeployCLIUrl              | Base URL        | The URL for UDeploy CLI 
+udeployApplication         | String          | The UDeploy application name (e.g. WAS_HAY)
+udeployEnvPrefix           | String          | The UDeploy environment prefix (e.g. WAS_DEV_HAY_vm00000 for WAS_DEV_HAY_vm00000879)
+udeployComponent           | String          | The UDeploy component full name (e.g. WAS_HAY.oca-cpp for oca-cpp) 
+udeployArtifact            | String          | The UDeploy artifact name (e.g. oca-cpp)
+udeployCredentialsId       | CredentialsId   | The Credentials-ID for executing UDeploy http requests
+deployEmailGroup           | Space Sep. List | The list of email recipients to be notified when the deployment section sends and email 
+sonarBaseUrl               | Base URL        | The URL for SonarQube projects
+sonarArtifactName          | String          | The Artifact name for SonarQube, this is the fullname (e.g. com.abnamro.omnichannel-frontend:oca)
+mailList                   | Space Sep. List | The list of email recipients to be notified when the build fails
+
 
 **Note** *Unfortunately, Jenkins Workflow jobs that get triggered directly from Stash or BitBucket do not have any parameters defined regardless of the Job's configuration. It is advised to have a separate job for triggering Pipeline builds.*
 
-#### Parameters for flow script inside the project
+## Parameters for flow script inside the project
 Parameter                  | Type            | Description
 -------------------------- | --------------- | ----------------------------------------------
 flowFile                   | String          | Which flow file the job wants to execute (currently: fed-standards-and-guidelines, oca)
@@ -180,9 +216,9 @@ flowBranch                 | String          | The GIT branch to checkout, can c
 flowCredentialsId          | CredentialsId   | The Jenkins CredentialID to use for the GIT checkout
 
 
-### Examples
+# Examples<a name="Examples"></a>
 
-#### Application Jenkinsfile example
+## Application Jenkinsfile example
 *Example 3 - Example of a component's flow.groovy file that is used via the "Use Workflow from SCM" option*
 
 ```groovy
@@ -222,7 +258,47 @@ node {
 flow.runFlow()
 ```
 
-#### Useful Jenkins Pipeline tips
+## Simple Java Example
+```groovy
+stage 'SCM'
+node {
+    wrap([$class: 'TimestamperBuildWrapper']) {
+        timeout(time: 15, unit: 'MINUTES') {
+            deleteDir()
+            git credentialsId: 'b9cafaa9-98ef-4d08-9d6a-0406d0b4a53b', url: 'https://C29874@q-bitbucket.nl.eu.abnamro.com:7999/scm/fed/java-maven-example.git'
+            stash 'workspace'
+        }
+    }
+}
+
+node {
+    try {
+        wrap([$class: 'TimestamperBuildWrapper']) {
+            timeout(time: 15, unit: 'MINUTES') {
+                deleteDir()
+
+                unstash 'workspace'
+                def mvnHome = tool 'Maven 3.3.3'
+
+                stage 'Build'
+
+                withEnv(["mvnHome=$mvnHome", "PATH+MAVEN=$mvnHome"]) {
+                    bat '''
+                        set M2_HOME=%mvnHome%
+                        %mvnHome%/bin/mvn clean install -s settings.xml
+                    '''
+                }
+                step([$class: 'JUnitResultArchiver', testResults: 'target\\surefire-reports\\*.xml'])
+            }
+        }
+    }  catch (err) {
+        echo "Caught: ${err}"
+        currentBuild.result = 'FAILURE'
+    }
+}
+```
+
+# Tips & Tricks<a name="Tips-Tricks"></a>
 Here are some useful tips.
 
 * Any Jenkins Pipeline job, will have the checkbox at the bottom "show snippets", allowing you to select compatible plugins from the list that are currently in your server and generate the appropriate groovy snippet
@@ -236,7 +312,7 @@ Here are some useful tips.
 
 
 *Example 4 - tips for using Jenkins Workflow*
-
+## Using wrappers
 ```groovy
 def updateBuildDescription(String description) {
     node ('master') {
@@ -257,28 +333,5 @@ def updateBuildDescription(String description) {
 return this;
 ```
 
-### Required Jenkins plugins
-Plugin name                                                                                       | Description
-------------------------------------------------------------------------------------------------- | ----------------------------------------------
-[Build timeout plugin](http://wiki.jenkins-ci.org/display/JENKINS/Build-timeout+Plugin)           | Allows you to set a time, if the job runs longer it will get automatically cancelled.
-[Build With Parameters](https://wiki.jenkins-ci.org/display/JENKINS/Build+With+Parameters+Plugin) | For having a build with parameters
-[Build name setter](http://wiki.jenkins-ci.org/display/JENKINS/Build+Name+Setter+Plugin)          | Allows you to adjust the build's name during a build
-**(1)**[Cloudbees Pipeline](http://release-notes.cloudbees.com/product/CloudBees+Workflow)        | Allows the usage of enterprise level **Pipeline** components such as *checkpoint*
-[Conditional Buildstep](https://wiki.jenkins-ci.org/display/JENKINS/Conditional+BuildStep+Plugin) | Allows you to filter buildstep executions depending on the context of the job execution
-[Copy Artifact](http://wiki.jenkins-ci.org/display/JENKINS/Copy+Artifact+Plugin)                  | For being able to copy artifacts between jobs, useful when external jobs have some result that the Workflow needs
-[Credentials Binding](http://wiki.jenkins-ci.org/display/JENKINS/Credentials+Binding+Plugin)      | For allowing credentials to be bound in Jenkins Workflow scripts (see example 4)
-[Credentials](http://wiki.jenkins-ci.org/display/JENKINS/Credentials+Plugin)                      | For managing credentials for other servers or uses in a safe way
-[Description setter](http://wiki.jenkins-ci.org/display/JENKINS/Description+Setter+Plugin)        | Allows you to set the build's description during a build
-[GIT](http://wiki.jenkins-ci.org/display/JENKINS/Git+Plugin)                                      | For checking out GIT repositories
-[Hidden parameters](http://wiki.jenkins-ci.org/display/JENKINS/Hidden+Parameter+Plugin)           | As the workflow jobs require a lot of pre-set parameters, this plugin will hide them from the build execution page
-[Mask Passwords](http://wiki.jenkins-ci.org/display/JENKINS/Mask+Passwords+Plugin)                | For masking passwords in log files
-[Parameterized Trigger](http://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin)  | For triggering parameterized builds with parameters
-**(2)**[Pipeline](https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Plugin)                    | For being able to execute Jenkins Pipeline jobs
-[Show Build Parameters](https://wiki.jenkins-ci.org/display/JENKINS/Show+Build+Parameters+Plugin) | Show the parameters used for a build on the main build page
-[SonarQube](http://redirect.sonarsource.com/plugins/jenkins.html)                                 | For executing sonarqube analysis (also requires a SonarQube Runner agent on buildslaves)
-[Sonatype CLM](http://links.sonatype.com/products/clm/ci/home)                                   | For showing Nexus CLM (also known as IQ) results in Jenkins overview
-[Stash Notifier](http://wiki.jenkins-ci.org/display/JENKINS/StashNotifier+Plugin)                 | Allows you to easily notify stash for build status updates
-[Stash Pullrequest](https://wiki.jenkins-ci.org/display/JENKINS/Stash+pullrequest+builder+plugin) | Allows you to have the job check for pull requests in Stash/BitBucket (for PR's they do not send notifications to Jenkins)
-[Timestamper](http://wiki.jenkins-ci.org/display/JENKINS/Timestamper)                             | For adding timestamps to your log
-
-** (1)(2): these plugins are actually a group of plugins, the entire group of each is required **
+# Required Jenkins plugins<a name="Required-Jenkins-plugins"></a>
+You can find the list of required plugins for Jenkins [here](docs/jenkins-pipeline-required-jenkins-plugins.md).
