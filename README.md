@@ -11,6 +11,12 @@ Jenkins-Pipeline is free software: you can redistribute it and/or modify
    You should have received a copy of the GNU General Public License
    along with Jenkins-Pipeline.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# DEPRECATED
+
+**UPDATE 05-12-2017** please note that this style of using pipeline libraries is out dated and discouraged.
+Please use [Shared Libraries](https://jenkins.io/doc/book/pipeline/shared-libraries/), for more information [look at our core library](https://github.com/abnamrocoesd/jenkins-pipeline-library-core) (more coming) or [this website explaining them](https://joostvdg.github.io/).
+
 # Table of Contents
    1. [Jenkins Pipeline Plugin](#Jenkins-Pipeline-plugin)
    2. [Jenkins Jobs](#Jenkins-Jobs-setup)
